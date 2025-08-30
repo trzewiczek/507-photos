@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/**
+ * ==============================================================
+ * USER
+ * ==============================================================
+ */
+model User {
+  id             String  @id @default(uuid())
+  email          String  @unique
+  hashedPassword String?
+
+  // Relations
+  albums Album[]
+  photos Photo[]
+}
+
+/**
+ * ==============================================================
+ * ALBUM
+ * ==============================================================
+ */
+model Album {
+  id          String   @id @default(uuid())
+  title       String
+  description String? // optional
+  ownerId     String
+  publicSlug  String?  @unique // null ⇒ private
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner    User           @relation(fields: [ownerId], references: [id])
+  sections AlbumSection[]
+}
+
+/**
+ * ==============================================================
+ * ALBUM SECTION
+ * ==============================================================
+ */
+model AlbumSection {
+  id          String   @id @default(uuid())
+  title       String
+  description String? // optional
+  albumId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  album  Album   @relation(fields: [albumId], references: [id])
+  photos Photo[] @relation("SectionPhotos")
+}
+
+/**
+ * ==============================================================
+ * PHOTO
+ * ==============================================================
+ */
+model Photo {
+  id           String   @id @default(uuid())
+  ownerId      String
+  originalUrl  String
+  thumbnailUrl String? // generated later
+  mobileUrl    String? // generated later
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // ----- Embedded structs (flattened as columns) ----------------
+  // FileMetadata
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  width     Int
+  height    Int
+
+  // PhotoMetadata
+  captureDate DateTime
+  description String? // optional description
+  // Location – we store both possibilities; one will be null
+  latitude    Float? // GeoPosition.latitude
+  longitude   Float? // GeoPosition.longitude
+  knownPlace  String? // KnownPlace (e.g., city name)
+
+  // ----- Relations ---------------------------------------------
+  owner         User           @relation(fields: [ownerId], references: [id])
+  albumSections AlbumSection[] @relation("SectionPhotos")
+  tags          PhotoTag[]
+}
+
+/**
+ * ==============================================================
+ * TAG
+ * ==============================================================
+ */
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+
+  // Relation
+  photos PhotoTag[]
+}
+
+/**
+ * ==============================================================
+ * MANY‑TO‑MANY JOIN: Photo ↔ Tag
+ * ==============================================================
+ */
+model PhotoTag {
+  photoId String
+  tagId   String
+
+  photo Photo @relation(fields: [photoId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@id([photoId, tagId]) // composite primary key
+}
